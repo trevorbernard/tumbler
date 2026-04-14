@@ -2,11 +2,24 @@ use base64::{engine::general_purpose::STANDARD, Engine};
 use std::fs::OpenOptions;
 use std::io::{self, Write};
 
-pub fn copy(text: &str) -> io::Result<()> {
-    let encoded = STANDARD.encode(text);
-    let osc52 = format!("\x1b]52;c;{}\x07", encoded);
-    let mut tty = OpenOptions::new().write(true).open("/dev/tty")?;
-    tty.write_all(osc52.as_bytes())
+pub enum Destination {
+    Clipboard,
+    Stdout,
+}
+
+pub fn copy(text: &str) -> io::Result<Destination> {
+    match OpenOptions::new().write(true).open("/dev/tty") {
+        Ok(mut tty) => {
+            let encoded = STANDARD.encode(text);
+            let osc52 = format!("\x1b]52;c;{}\x07", encoded);
+            tty.write_all(osc52.as_bytes())?;
+            Ok(Destination::Clipboard)
+        }
+        Err(_) => {
+            println!("{}", text);
+            Ok(Destination::Stdout)
+        }
+    }
 }
 
 #[cfg(test)]
