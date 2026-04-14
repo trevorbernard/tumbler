@@ -103,6 +103,12 @@ With Nix:
 nix build
 ```
 
+## Disclaimer
+
+This software is provided as-is with no warranty. Use at your own risk. It has
+not been audited by a security professional. Review the code before relying on
+it for anything sensitive.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
