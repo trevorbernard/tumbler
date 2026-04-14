@@ -43,41 +43,36 @@ impl EntropySource {
 }
 
 fn read_dice_roll(word_num: usize, total_words: usize) -> io::Result<usize> {
+    eprintln!("Word {word_num}/{total_words} — roll 5 dice:");
+    let mut index = 0usize;
+    for die in 1usize..=5 {
+        index = index * 6 + read_single_die(die)?;
+    }
+    Ok(index)
+}
+
+fn read_single_die(die_num: usize) -> io::Result<usize> {
     let stderr = io::stderr();
     loop {
         {
             let mut err = stderr.lock();
-            write!(err, "Word {word_num}/{total_words} — roll 5 dice (1-6): ")?;
+            write!(err, "  Die {die_num}/5 (1-6): ")?;
             err.flush()?;
         }
-
         let mut line = String::new();
         let n = io::stdin().read_line(&mut line)?;
         if n == 0 {
             return Err(io::Error::new(io::ErrorKind::UnexpectedEof, "stdin closed"));
         }
-
-        match parse_dice_roll(&line) {
-            Some(idx) => return Ok(idx),
-            None => eprintln!("  enter exactly 5 digits, each 1-6 (e.g. 25341)"),
+        match line.trim() {
+            "1" => return Ok(0),
+            "2" => return Ok(1),
+            "3" => return Ok(2),
+            "4" => return Ok(3),
+            "5" => return Ok(4),
+            "6" => return Ok(5),
+            _ => eprintln!("  enter a single digit from 1 to 6"),
         }
-    }
-}
-
-/// Parse a dice roll string into a wordlist index.
-///
-/// Accepts 5 digits (1–6) with optional whitespace between them.
-/// Returns None if the input is invalid.
-pub(crate) fn parse_dice_roll(s: &str) -> Option<usize> {
-    let digits: Vec<u8> = s
-        .chars()
-        .filter(|c| !c.is_whitespace())
-        .map(|c| c as u8)
-        .collect();
-    if digits.len() == 5 && digits.iter().all(|&b| (b'1'..=b'6').contains(&b)) {
-        Some(digits.iter().fold(0usize, |acc, &b| acc * 6 + (b - b'1') as usize))
-    } else {
-        None
     }
 }
 
@@ -103,7 +98,7 @@ pub(crate) fn sample<R: Read>(source: &mut R, list_len: usize) -> io::Result<usi
 
 #[cfg(test)]
 mod tests {
-    use super::{parse_dice_roll, sample};
+    use super::sample;
     use std::io::Cursor;
 
     fn cursor(values: &[u64]) -> Cursor<Vec<u8>> {
@@ -111,45 +106,16 @@ mod tests {
     }
 
     #[test]
-    fn dice_all_ones_is_index_zero() {
-        assert_eq!(parse_dice_roll("11111"), Some(0));
-    }
-
-    #[test]
-    fn dice_all_sixes_is_last_index() {
-        assert_eq!(parse_dice_roll("66666"), Some(7775));
-    }
-
-    #[test]
-    fn dice_spaces_accepted() {
-        // "1 2 3 4 5" → digits [1,2,3,4,5] → (0)*1296 + (1)*216 + (2)*36 + (3)*6 + (4) = 310
-        assert_eq!(parse_dice_roll("1 2 3 4 5"), Some(310));
-    }
-
-    #[test]
-    fn dice_rejects_zero() {
-        assert_eq!(parse_dice_roll("01234"), None);
-    }
-
-    #[test]
-    fn dice_rejects_seven() {
-        assert_eq!(parse_dice_roll("12375"), None);
-    }
-
-    #[test]
-    fn dice_rejects_too_short() {
-        assert_eq!(parse_dice_roll("1234"), None);
-    }
-
-    #[test]
-    fn dice_rejects_too_long() {
-        assert_eq!(parse_dice_roll("123456"), None);
-    }
-
-    #[test]
-    fn dice_index_calculation() {
-        // 21345: (2-1)*1296 + (1-1)*216 + (3-1)*36 + (4-1)*6 + (5-1) = 1296 + 0 + 72 + 18 + 4 = 1390
-        assert_eq!(parse_dice_roll("21345"), Some(1390));
+    fn dice_index_accumulation() {
+        // all-1s (die value 0 each): 0
+        let idx: usize = [0, 0, 0, 0, 0].iter().fold(0, |acc, &v| acc * 6 + v);
+        assert_eq!(idx, 0);
+        // all-6s (die value 5 each): 7775
+        let idx: usize = [5, 5, 5, 5, 5].iter().fold(0, |acc, &v| acc * 6 + v);
+        assert_eq!(idx, 7775);
+        // 2,1,3,4,5 (values 1,0,2,3,4): 1*1296 + 0*216 + 2*36 + 3*6 + 4 = 1390
+        let idx: usize = [1, 0, 2, 3, 4].iter().fold(0, |acc, &v| acc * 6 + v);
+        assert_eq!(idx, 1390);
     }
 
     #[test]

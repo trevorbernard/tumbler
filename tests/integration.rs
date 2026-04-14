@@ -1,4 +1,5 @@
-use std::process::Command;
+use std::io::Write;
+use std::process::{Command, Stdio};
 
 const BIN: &str = env!("CARGO_BIN_EXE_tumbler");
 
@@ -7,6 +8,24 @@ fn run(args: &[&str]) -> (bool, String, String) {
         .args(args)
         .output()
         .expect("failed to spawn binary");
+    let stdout = String::from_utf8_lossy(&out.stdout).into_owned();
+    let stderr = String::from_utf8_lossy(&out.stderr).into_owned();
+    (out.status.success(), stdout, stderr)
+}
+
+fn run_with_stdin(args: &[&str], input: &str) -> (bool, String, String) {
+    let mut child = Command::new(BIN)
+        .args(args)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("failed to spawn binary");
+    {
+        let mut stdin = child.stdin.take().unwrap();
+        stdin.write_all(input.as_bytes()).expect("failed to write stdin");
+    }
+    let out = child.wait_with_output().expect("failed to wait for binary");
     let stdout = String::from_utf8_lossy(&out.stdout).into_owned();
     let stderr = String::from_utf8_lossy(&out.stderr).into_owned();
     (out.status.success(), stdout, stderr)
@@ -105,6 +124,34 @@ fn entropy_output_goes_to_stderr_not_stdout() {
             "entropy stats leaked into stdout: {token:?}"
         );
     }
+}
+
+// ── dice mode ────────────────────────────────────────────────────────────────
+
+#[test]
+fn dice_mode_prompts_show_incrementing_word_number() {
+    // 3 words × 5 dice each = 15 single-digit inputs.
+    // Word 1: all 1s → index 0; Word 2: all 6s → index 7775; Word 3: 2,5,3,4,1 → index 2250
+    let input = "1\n1\n1\n1\n1\n6\n6\n6\n6\n6\n2\n5\n3\n4\n1\n";
+    let (ok, _stdout, stderr) = run_with_stdin(&["--dice", "--words", "3", "--print"], input);
+    assert!(ok, "dice mode exited with error; stderr: {stderr}");
+    assert!(stderr.contains("Word 1/3"), "expected 'Word 1/3' in stderr; got: {stderr:?}");
+    assert!(stderr.contains("Word 2/3"), "expected 'Word 2/3' in stderr; got: {stderr:?}");
+    assert!(stderr.contains("Word 3/3"), "expected 'Word 3/3' in stderr; got: {stderr:?}");
+}
+
+#[test]
+fn dice_mode_produces_correct_word_count() {
+    // 4 words × 5 dice each = 20 single-digit inputs.
+    let input = "1\n1\n1\n1\n1\n2\n2\n2\n2\n2\n3\n3\n3\n3\n3\n4\n4\n4\n4\n4\n";
+    let (ok, stdout, stderr) =
+        run_with_stdin(&["--dice", "--words", "4", "--print", "--separator", " "], input);
+    assert!(ok, "dice mode exited with error; stderr: {stderr}");
+    assert_eq!(
+        stdout.trim().split(' ').count(),
+        4,
+        "--words 4 in dice mode should produce 4 words; stdout: {stdout:?}"
+    );
 }
 
 // ── error handling ───────────────────────────────────────────────────────────
