@@ -1,5 +1,6 @@
 use argh::FromArgs;
 use std::io;
+use zeroize::Zeroize;
 
 mod clipboard;
 mod entropy;
@@ -49,7 +50,7 @@ fn main() -> io::Result<()> {
     }
 
     let words = wordlist::load();
-    let passphrase = generate_passphrase(&words, &args)?;
+    let mut passphrase = generate_passphrase(&words, &args)?;
 
     if args.entropy {
         let bits_per_word = (words.len() as f64).log2();
@@ -75,6 +76,7 @@ fn main() -> io::Result<()> {
         }
     }
 
+    passphrase.zeroize();
     Ok(())
 }
 

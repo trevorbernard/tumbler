@@ -24,15 +24,16 @@ impl EntropySource {
 /// For a 7776-word list this is 2624/2^64 ≈ 1.4e-16; the loop body
 /// executes exactly once in any practical lifetime of the universe.
 pub(crate) fn sample<R: Read>(source: &mut R, list_len: usize) -> io::Result<usize> {
+    assert!(list_len > 0, "list_len must be > 0");
     let n = list_len as u64;
-    // Largest multiple of n that fits in [0, u64::MAX].
-    // Values in [threshold, u64::MAX] are rejected to avoid bias.
-    let threshold = u64::MAX - (u64::MAX % n);
+    // Reject values in [0, threshold) to avoid modulo bias.
+    // threshold == 2^64 mod n; for n=7776 this is 2624.
+    let threshold = n.wrapping_neg() % n;
     loop {
         let mut buf = [0u8; 8];
         source.read_exact(&mut buf)?;
         let v = u64::from_le_bytes(buf);
-        if v < threshold {
+        if v >= threshold {
             return Ok((v % n) as usize);
         }
     }
@@ -58,10 +59,9 @@ mod tests {
 
     #[test]
     fn rejection_sampling_skips_invalid_value() {
-        // For list_len = 7: threshold = u64::MAX - (u64::MAX % 7).
-        // u64::MAX % 7 == 1, so threshold = u64::MAX - 1.
-        // u64::MAX >= threshold → rejected. The next value (14) is accepted.
-        let mut src = cursor(&[u64::MAX, 14]);
+        // For list_len = 7: threshold = 7u64.wrapping_neg() % 7 == 1.
+        // Values in [0, 1) are rejected, so 0 is rejected and 14 is accepted.
+        let mut src = cursor(&[0, 14]);
         assert_eq!(sample(&mut src, 7).unwrap(), 0); // 14 % 7 == 0
     }
 

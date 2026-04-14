@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 argh = "0.1.12"
 base64 = "0.22"
+zeroize = "1"
 
 [build-dependencies]
 sha2 = "0.10"
