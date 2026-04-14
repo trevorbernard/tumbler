@@ -32,6 +32,13 @@ struct Args {
     #[argh(switch)]
     no_capitalize: bool,
 
+    /// use physical dice rolls as the entropy source
+    ///
+    /// Prompts you to roll 5 dice per word. Each set of 5 rolls (digits 1-6)
+    /// selects one word from the 7776-word list with no computer randomness.
+    #[argh(switch)]
+    dice: bool,
+
     /// print passphrase to stdout instead of copying to clipboard
     #[argh(switch, short = 'p')]
     print: bool,
@@ -46,6 +53,11 @@ fn main() -> io::Result<()> {
 
     if args.words == 0 {
         eprintln!("error: --words must be at least 1");
+        std::process::exit(1);
+    }
+
+    if args.dice && args.device != "/dev/urandom" {
+        eprintln!("error: --dice and --device are mutually exclusive");
         std::process::exit(1);
     }
 
@@ -82,7 +94,11 @@ fn main() -> io::Result<()> {
 }
 
 fn generate_passphrase(words: &[&str], args: &Args) -> io::Result<String> {
-    let mut rng = entropy::EntropySource::open(&args.device)?;
+    let mut rng = if args.dice {
+        entropy::EntropySource::dice(args.words)
+    } else {
+        entropy::EntropySource::open(&args.device)?
+    };
     let selected: Vec<String> = (0..args.words)
         .map(|_| {
             rng.next_index(words.len()).map(|i| {
@@ -115,6 +131,7 @@ mod tests {
             device: "/dev/urandom".to_string(),
             separator: separator.to_string(),
             no_capitalize,
+            dice: false,
             print: false,
             entropy: false,
         }
@@ -195,6 +212,7 @@ mod tests {
             device: "/nonexistent/device".to_string(),
             separator: String::new(),
             no_capitalize: false,
+            dice: false,
             print: false,
             entropy: false,
         };

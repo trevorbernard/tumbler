@@ -1,8 +1,13 @@
 use std::fs::File;
-use std::io::{self, Read};
+use std::io::{self, Read, Write};
+
+enum Inner {
+    Device(File),
+    Dice { next_word: usize, total_words: usize },
+}
 
 pub struct EntropySource {
-    device: File,
+    inner: Inner,
 }
 
 impl EntropySource {
@@ -10,11 +15,69 @@ impl EntropySource {
         let device = File::open(path).map_err(|e| {
             io::Error::new(e.kind(), format!("cannot open entropy device '{}': {}", path, e))
         })?;
-        Ok(Self { device })
+        Ok(Self { inner: Inner::Device(device) })
+    }
+
+    pub fn dice(total_words: usize) -> Self {
+        Self { inner: Inner::Dice { next_word: 0, total_words } }
     }
 
     pub fn next_index(&mut self, list_len: usize) -> io::Result<usize> {
-        sample(&mut self.device, list_len)
+        match &mut self.inner {
+            Inner::Device(dev) => sample(dev, list_len),
+            Inner::Dice { next_word, total_words } => {
+                const DICE_COMBINATIONS: usize = 7776;
+                if list_len != DICE_COMBINATIONS {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidInput,
+                        format!("dice mode requires a {DICE_COMBINATIONS}-word list, but wordlist has {list_len} words"),
+                    ));
+                }
+                *next_word += 1;
+                let word_num = *next_word;
+                let total = *total_words;
+                read_dice_roll(word_num, total)
+            }
+        }
+    }
+}
+
+fn read_dice_roll(word_num: usize, total_words: usize) -> io::Result<usize> {
+    let stderr = io::stderr();
+    loop {
+        {
+            let mut err = stderr.lock();
+            write!(err, "Word {word_num}/{total_words} — roll 5 dice (1-6): ")?;
+            err.flush()?;
+        }
+
+        let mut line = String::new();
+        let n = io::stdin().read_line(&mut line)?;
+        if n == 0 {
+            return Err(io::Error::new(io::ErrorKind::UnexpectedEof, "stdin closed"));
+        }
+
+        match parse_dice_roll(&line) {
+            Some(idx) => return Ok(idx),
+            None => eprintln!("  enter exactly 5 digits, each 1-6 (e.g. 25341)"),
+        }
+    }
+}
+
+/// Parse a dice roll string into a wordlist index.
+///
+/// Accepts 5 digits (1–6) with optional whitespace between them.
+/// Returns None if the input is invalid.
+pub(crate) fn parse_dice_roll(s: &str) -> Option<usize> {
+    let digits: Vec<u8> = s
+        .chars()
+        .filter(|c| !c.is_whitespace())
+        .map(|c| c as u8)
+        .collect();
+    if digits.len() == 5 && digits.iter().all(|&b| (b'1'..=b'6').contains(&b)) {
+        Some(digits.iter().fold(0usize, |acc, &b| acc * 6 + (b - b'1') as usize))
+    } else {
+        None
     }
 }
 
@@ -40,11 +103,53 @@ pub(crate) fn sample<R: Read>(source: &mut R, list_len: usize) -> io::Result<usi
 
 #[cfg(test)]
 mod tests {
-    use super::sample;
+    use super::{parse_dice_roll, sample};
     use std::io::Cursor;
 
     fn cursor(values: &[u64]) -> Cursor<Vec<u8>> {
         Cursor::new(values.iter().flat_map(|v| v.to_le_bytes()).collect())
+    }
+
+    #[test]
+    fn dice_all_ones_is_index_zero() {
+        assert_eq!(parse_dice_roll("11111"), Some(0));
+    }
+
+    #[test]
+    fn dice_all_sixes_is_last_index() {
+        assert_eq!(parse_dice_roll("66666"), Some(7775));
+    }
+
+    #[test]
+    fn dice_spaces_accepted() {
+        // "1 2 3 4 5" → digits [1,2,3,4,5] → (0)*1296 + (1)*216 + (2)*36 + (3)*6 + (4) = 310
+        assert_eq!(parse_dice_roll("1 2 3 4 5"), Some(310));
+    }
+
+    #[test]
+    fn dice_rejects_zero() {
+        assert_eq!(parse_dice_roll("01234"), None);
+    }
+
+    #[test]
+    fn dice_rejects_seven() {
+        assert_eq!(parse_dice_roll("12375"), None);
+    }
+
+    #[test]
+    fn dice_rejects_too_short() {
+        assert_eq!(parse_dice_roll("1234"), None);
+    }
+
+    #[test]
+    fn dice_rejects_too_long() {
+        assert_eq!(parse_dice_roll("123456"), None);
+    }
+
+    #[test]
+    fn dice_index_calculation() {
+        // 21345: (2-1)*1296 + (1-1)*216 + (3-1)*36 + (4-1)*6 + (5-1) = 1296 + 0 + 72 + 18 + 4 = 1390
+        assert_eq!(parse_dice_roll("21345"), Some(1390));
     }
 
     #[test]
