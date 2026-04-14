@@ -13,7 +13,7 @@ fn main() {
         .expect("src/wordlist.txt not found");
 
     let digest = Sha256::digest(&bytes);
-    let actual = digest.iter().fold(String::new(), |mut s, b| {
+    let actual = digest.iter().fold(String::with_capacity(64), |mut s, b| {
         write!(s, "{:02x}", b).unwrap();
         s
     });

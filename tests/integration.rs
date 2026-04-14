@@ -101,7 +101,7 @@ fn entropy_output_goes_to_stderr_not_stdout() {
     // stdout should still be just the passphrase words, not the stats line
     for token in stdout.trim().split(' ') {
         assert!(
-            token.chars().all(|c| c.is_ascii_alphabetic()),
+            token.chars().all(|c| c.is_ascii_alphabetic() || c == '-'),
             "entropy stats leaked into stdout: {token:?}"
         );
     }

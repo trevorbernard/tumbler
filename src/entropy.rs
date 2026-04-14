@@ -26,8 +26,7 @@ impl EntropySource {
 pub(crate) fn sample<R: Read>(source: &mut R, list_len: usize) -> io::Result<usize> {
     assert!(list_len > 0, "list_len must be > 0");
     let n = list_len as u64;
-    // Reject values in [0, threshold) to avoid modulo bias.
-    // threshold == 2^64 mod n; for n=7776 this is 2624.
+    // threshold == 2^64 mod n; reject values in [0, threshold) to avoid modulo bias.
     let threshold = n.wrapping_neg() % n;
     loop {
         let mut buf = [0u8; 8];
@@ -59,8 +58,8 @@ mod tests {
 
     #[test]
     fn rejection_sampling_skips_invalid_value() {
-        // For list_len = 7: threshold = 7u64.wrapping_neg() % 7 == 1.
-        // Values in [0, 1) are rejected, so 0 is rejected and 14 is accepted.
+        // For list_len = 7: threshold = 7u64.wrapping_neg() % 7 == 2.
+        // Values in [0, 2) are rejected, so both 0 and 1 are rejected; 14 is accepted.
         let mut src = cursor(&[0, 14]);
         assert_eq!(sample(&mut src, 7).unwrap(), 0); // 14 % 7 == 0
     }
