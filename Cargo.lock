@@ -360,7 +360,7 @@ dependencies = [
 
 [[package]]
 name = "tumbler"
-version = "0.1.1-dev"
+version = "0.1.1"
 dependencies = [
  "argh",
  "base64",
