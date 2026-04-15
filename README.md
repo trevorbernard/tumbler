@@ -1,5 +1,8 @@
 # tumbler
 
+[![CI](https://github.com/trevorbernard/tumbler/actions/workflows/ci.yml/badge.svg)](https://github.com/trevorbernard/tumbler/actions/workflows/ci.yml)
+[![Release](https://github.com/trevorbernard/tumbler/actions/workflows/release.yml/badge.svg)](https://github.com/trevorbernard/tumbler/actions/workflows/release.yml)
+
 A diceware passphrase generator with selectable entropy sources. Generates
 memorable, high-entropy passphrases from the
 [EFF large wordlist](https://www.eff.org/dice) and copies them directly to
@@ -8,14 +11,18 @@ your clipboard — no terminal output, no shell history.
 ## Usage
 
 ```
-tumbler [-n <words>] [-d <device>] [-s <separator>] [-p] [-e]
+tumbler [-n <words>] [-b <bits>] [-c <count>] [-d <device>] [-s <separator>] [-p] [-e] [--dice] [--no-capitalize]
 ```
 
 | Flag | Default | Description |
 |------|---------|-------------|
 | `-n`, `--words` | `6` | Number of words |
+| `-b`, `--bits` | — | Target entropy in bits; computes word count automatically (overrides `--words`) |
+| `-c`, `--count` | `1` | Number of passphrases to generate |
 | `-d`, `--device` | `/dev/urandom` | Entropy source device |
 | `-s`, `--separator` | `""` | Word separator |
+| `--dice` | — | Use physical dice rolls as the entropy source |
+| `--no-capitalize` | — | Do not capitalize words |
 | `-p`, `--print` | — | Print to stdout instead of clipboard |
 | `-e`, `--entropy` | — | Show entropy statistics |
 
