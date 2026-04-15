@@ -27,7 +27,11 @@ mod tests {
     fn no_duplicates() {
         let words = load();
         let unique: HashSet<_> = words.iter().collect();
-        assert_eq!(unique.len(), words.len(), "wordlist contains duplicate entries");
+        assert_eq!(
+            unique.len(),
+            words.len(),
+            "wordlist contains duplicate entries"
+        );
     }
 
     #[test]

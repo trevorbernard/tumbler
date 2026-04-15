@@ -23,7 +23,9 @@ fn run_with_stdin(args: &[&str], input: &str) -> (bool, String, String) {
         .expect("failed to spawn binary");
     {
         let mut stdin = child.stdin.take().unwrap();
-        stdin.write_all(input.as_bytes()).expect("failed to write stdin");
+        stdin
+            .write_all(input.as_bytes())
+            .expect("failed to write stdin");
     }
     let out = child.wait_with_output().expect("failed to wait for binary");
     let stdout = String::from_utf8_lossy(&out.stdout).into_owned();
@@ -135,17 +137,28 @@ fn dice_mode_prompts_show_incrementing_word_number() {
     let input = "1\n1\n1\n1\n1\n6\n6\n6\n6\n6\n2\n5\n3\n4\n1\n";
     let (ok, _stdout, stderr) = run_with_stdin(&["--dice", "--words", "3", "--print"], input);
     assert!(ok, "dice mode exited with error; stderr: {stderr}");
-    assert!(stderr.contains("Word 1/3"), "expected 'Word 1/3' in stderr; got: {stderr:?}");
-    assert!(stderr.contains("Word 2/3"), "expected 'Word 2/3' in stderr; got: {stderr:?}");
-    assert!(stderr.contains("Word 3/3"), "expected 'Word 3/3' in stderr; got: {stderr:?}");
+    assert!(
+        stderr.contains("Word 1/3"),
+        "expected 'Word 1/3' in stderr; got: {stderr:?}"
+    );
+    assert!(
+        stderr.contains("Word 2/3"),
+        "expected 'Word 2/3' in stderr; got: {stderr:?}"
+    );
+    assert!(
+        stderr.contains("Word 3/3"),
+        "expected 'Word 3/3' in stderr; got: {stderr:?}"
+    );
 }
 
 #[test]
 fn dice_mode_produces_correct_word_count() {
     // 4 words × 5 dice each = 20 single-digit inputs.
     let input = "1\n1\n1\n1\n1\n2\n2\n2\n2\n2\n3\n3\n3\n3\n3\n4\n4\n4\n4\n4\n";
-    let (ok, stdout, stderr) =
-        run_with_stdin(&["--dice", "--words", "4", "--print", "--separator", " "], input);
+    let (ok, stdout, stderr) = run_with_stdin(
+        &["--dice", "--words", "4", "--print", "--separator", " "],
+        input,
+    );
     assert!(ok, "dice mode exited with error; stderr: {stderr}");
     assert_eq!(
         stdout.trim().split(' ').count(),
@@ -204,14 +217,28 @@ fn bits_produces_enough_words_for_target_entropy() {
     let (ok, stdout, stderr) = run(&["--print", "--bits", "80", "--separator", " "]);
     assert!(ok, "--bits 80 exited with error; stderr: {stderr}");
     let count = stdout.trim().split(' ').count();
-    assert_eq!(count, 7, "--bits 80 should produce 7 words; stdout: {stdout:?}");
+    assert_eq!(
+        count, 7,
+        "--bits 80 should produce 7 words; stdout: {stdout:?}"
+    );
 }
 
 #[test]
 fn bits_with_count_produces_correct_grid() {
     // --bits 80 → 7 words per line; --count 3 → 3 lines
-    let (ok, stdout, stderr) = run(&["--print", "--bits", "80", "--count", "3", "--separator", " "]);
-    assert!(ok, "--bits 80 --count 3 exited with error; stderr: {stderr}");
+    let (ok, stdout, stderr) = run(&[
+        "--print",
+        "--bits",
+        "80",
+        "--count",
+        "3",
+        "--separator",
+        " ",
+    ]);
+    assert!(
+        ok,
+        "--bits 80 --count 3 exited with error; stderr: {stderr}"
+    );
     let lines: Vec<&str> = stdout.lines().collect();
     assert_eq!(lines.len(), 3, "expected 3 lines; stdout: {stdout:?}");
     for line in &lines {
@@ -227,7 +254,10 @@ fn bits_with_count_produces_correct_grid() {
 fn bits_entropy_shows_computed_word_count() {
     // --bits 80 → 7 words; --entropy should report 7, not the default 6
     let (ok, _, stderr) = run(&["--print", "--bits", "80", "--entropy"]);
-    assert!(ok, "--bits 80 --entropy exited with error; stderr: {stderr}");
+    assert!(
+        ok,
+        "--bits 80 --entropy exited with error; stderr: {stderr}"
+    );
     assert!(
         stderr.contains("7 words"),
         "entropy line should report computed word count (7), got: {stderr:?}"

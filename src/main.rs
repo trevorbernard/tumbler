@@ -211,7 +211,11 @@ mod tests {
         let words = crate::wordlist::load();
         let phrase = generate_passphrase(&words, 6, &args(6, " ", true)).unwrap();
         for word in phrase.split(' ') {
-            assert_eq!(word, word.to_lowercase(), "'{word}' should be all lowercase");
+            assert_eq!(
+                word,
+                word.to_lowercase(),
+                "'{word}' should be all lowercase"
+            );
         }
     }
 

@@ -3,7 +3,10 @@ use std::io::{self, Read, Write};
 
 enum Inner {
     Device(File),
-    Dice { next_word: usize, total_words: usize },
+    Dice {
+        next_word: usize,
+        total_words: usize,
+    },
 }
 
 pub struct EntropySource {
@@ -13,19 +16,32 @@ pub struct EntropySource {
 impl EntropySource {
     pub fn open(path: &str) -> io::Result<Self> {
         let device = File::open(path).map_err(|e| {
-            io::Error::new(e.kind(), format!("cannot open entropy device '{}': {}", path, e))
+            io::Error::new(
+                e.kind(),
+                format!("cannot open entropy device '{}': {}", path, e),
+            )
         })?;
-        Ok(Self { inner: Inner::Device(device) })
+        Ok(Self {
+            inner: Inner::Device(device),
+        })
     }
 
     pub fn dice(total_words: usize) -> Self {
-        Self { inner: Inner::Dice { next_word: 0, total_words } }
+        Self {
+            inner: Inner::Dice {
+                next_word: 0,
+                total_words,
+            },
+        }
     }
 
     pub fn next_index(&mut self, list_len: usize) -> io::Result<usize> {
         match &mut self.inner {
             Inner::Device(dev) => sample(dev, list_len),
-            Inner::Dice { next_word, total_words } => {
+            Inner::Dice {
+                next_word,
+                total_words,
+            } => {
                 const DICE_COMBINATIONS: usize = 7776;
                 if list_len != DICE_COMBINATIONS {
                     return Err(io::Error::new(
