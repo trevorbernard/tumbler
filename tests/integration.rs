@@ -224,6 +224,17 @@ fn bits_with_count_produces_correct_grid() {
 }
 
 #[test]
+fn bits_entropy_shows_computed_word_count() {
+    // --bits 80 → 7 words; --entropy should report 7, not the default 6
+    let (ok, _, stderr) = run(&["--print", "--bits", "80", "--entropy"]);
+    assert!(ok, "--bits 80 --entropy exited with error; stderr: {stderr}");
+    assert!(
+        stderr.contains("7 words"),
+        "entropy line should report computed word count (7), got: {stderr:?}"
+    );
+}
+
+#[test]
 fn bits_zero_exits_with_error() {
     let (ok, _, stderr) = run(&["--print", "--bits", "0"]);
     assert!(!ok, "expected non-zero exit for --bits 0");
