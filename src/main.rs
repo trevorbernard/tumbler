@@ -16,6 +16,14 @@ struct Args {
     #[argh(option, short = 'n', default = "6")]
     words: usize,
 
+    /// target entropy in bits; computes word count automatically (overrides --words)
+    #[argh(option, short = 'b')]
+    bits: Option<f64>,
+
+    /// number of passphrases to generate [default: 1]
+    #[argh(option, short = 'c', default = "1")]
+    count: usize,
+
     /// entropy source device [default: /dev/urandom]
     ///
     /// Use /dev/hwrng to read directly from a hardware TRNG. Note that raw
@@ -51,8 +59,8 @@ struct Args {
 fn main() -> io::Result<()> {
     let args: Args = argh::from_env();
 
-    if args.words == 0 {
-        eprintln!("error: --words must be at least 1");
+    if args.count == 0 {
+        eprintln!("error: --count must be at least 1");
         std::process::exit(1);
     }
 
@@ -62,44 +70,64 @@ fn main() -> io::Result<()> {
     }
 
     let words = wordlist::load();
-    let mut passphrase = generate_passphrase(&words, &args)?;
+    let bits_per_word = (words.len() as f64).log2();
+
+    let word_count = if let Some(b) = args.bits {
+        if b <= 0.0 {
+            eprintln!("error: --bits must be > 0");
+            std::process::exit(1);
+        }
+        ((b / bits_per_word).ceil() as usize).max(1)
+    } else {
+        if args.words == 0 {
+            eprintln!("error: --words must be at least 1");
+            std::process::exit(1);
+        }
+        args.words
+    };
 
     if args.entropy {
-        let bits_per_word = (words.len() as f64).log2();
-        let total_bits = bits_per_word * args.words as f64;
+        let total_bits = bits_per_word * word_count as f64;
         eprintln!(
             "{} words × {:.3} bits/word = {:.1} bits  (wordlist: {} words)",
-            args.words,
+            word_count,
             bits_per_word,
             total_bits,
             words.len(),
         );
     }
 
-    if args.print {
-        println!("{}", passphrase);
-    } else {
-        match clipboard::copy(&passphrase) {
-            Ok(clipboard::Destination::Clipboard) => eprintln!("Copied to clipboard."),
-            Ok(clipboard::Destination::Stdout) => {}
-            Err(e) => {
-                eprintln!("warning: clipboard write failed ({}), printing instead", e);
-                println!("{}", passphrase);
+    let print = args.print || args.count > 1;
+
+    for _ in 0..args.count {
+        let mut passphrase = generate_passphrase(&words, word_count, &args)?;
+
+        if print {
+            println!("{}", passphrase);
+        } else {
+            match clipboard::copy(&passphrase) {
+                Ok(clipboard::Destination::Clipboard) => eprintln!("Copied to clipboard."),
+                Ok(clipboard::Destination::Stdout) => {}
+                Err(e) => {
+                    eprintln!("warning: clipboard write failed ({}), printing instead", e);
+                    println!("{}", passphrase);
+                }
             }
         }
+
+        passphrase.zeroize();
     }
 
-    passphrase.zeroize();
     Ok(())
 }
 
-fn generate_passphrase(words: &[&str], args: &Args) -> io::Result<String> {
+fn generate_passphrase(words: &[&str], word_count: usize, args: &Args) -> io::Result<String> {
     let mut rng = if args.dice {
-        entropy::EntropySource::dice(args.words)
+        entropy::EntropySource::dice(word_count)
     } else {
         entropy::EntropySource::open(&args.device)?
     };
-    let selected: Vec<String> = (0..args.words)
+    let selected: Vec<String> = (0..word_count)
         .map(|_| {
             rng.next_index(words.len()).map(|i| {
                 if args.no_capitalize {
@@ -128,6 +156,8 @@ mod tests {
     fn args(words: usize, separator: &str, no_capitalize: bool) -> Args {
         Args {
             words,
+            bits: None,
+            count: 1,
             device: "/dev/urandom".to_string(),
             separator: separator.to_string(),
             no_capitalize,
@@ -161,7 +191,7 @@ mod tests {
     fn generate_word_count() {
         let words = crate::wordlist::load();
         for n in [1, 4, 6, 8] {
-            let phrase = generate_passphrase(&words, &args(n, " ", false)).unwrap();
+            let phrase = generate_passphrase(&words, n, &args(n, " ", false)).unwrap();
             assert_eq!(phrase.split(' ').count(), n, "expected {n} words");
         }
     }
@@ -169,7 +199,7 @@ mod tests {
     #[test]
     fn generate_capitalized_by_default() {
         let words = crate::wordlist::load();
-        let phrase = generate_passphrase(&words, &args(6, " ", false)).unwrap();
+        let phrase = generate_passphrase(&words, 6, &args(6, " ", false)).unwrap();
         for word in phrase.split(' ') {
             let first = word.chars().next().unwrap();
             assert!(first.is_uppercase(), "'{word}' should start with uppercase");
@@ -179,7 +209,7 @@ mod tests {
     #[test]
     fn generate_no_capitalize() {
         let words = crate::wordlist::load();
-        let phrase = generate_passphrase(&words, &args(6, " ", true)).unwrap();
+        let phrase = generate_passphrase(&words, 6, &args(6, " ", true)).unwrap();
         for word in phrase.split(' ') {
             assert_eq!(word, word.to_lowercase(), "'{word}' should be all lowercase");
         }
@@ -188,16 +218,15 @@ mod tests {
     #[test]
     fn generate_respects_separator() {
         let words = crate::wordlist::load();
-        let phrase = generate_passphrase(&words, &args(4, "-", true)).unwrap();
+        let phrase = generate_passphrase(&words, 4, &args(4, "-", true)).unwrap();
         assert_eq!(phrase.matches('-').count(), 3, "4 words need 3 hyphens");
     }
 
     #[test]
     fn generate_default_no_separator() {
         let words = crate::wordlist::load();
-        let phrase = generate_passphrase(&words, &args(4, "", false)).unwrap();
+        let phrase = generate_passphrase(&words, 4, &args(4, "", false)).unwrap();
         assert!(!phrase.contains(' '), "default separator should be empty");
-        // Words are alpha + optional hyphens (e.g. "drop-down")
         assert!(
             phrase.chars().all(|c| c.is_ascii_alphabetic() || c == '-'),
             "passphrase should be alpha/hyphen only with empty separator"
@@ -209,6 +238,8 @@ mod tests {
         let words = crate::wordlist::load();
         let a = Args {
             words: 1,
+            bits: None,
+            count: 1,
             device: "/nonexistent/device".to_string(),
             separator: String::new(),
             no_capitalize: false,
@@ -216,6 +247,6 @@ mod tests {
             print: false,
             entropy: false,
         };
-        assert!(generate_passphrase(&words, &a).is_err());
+        assert!(generate_passphrase(&words, 1, &a).is_err());
     }
 }

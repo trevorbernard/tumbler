@@ -154,6 +154,85 @@ fn dice_mode_produces_correct_word_count() {
     );
 }
 
+// ── count mode ───────────────────────────────────────────────────────────────
+
+#[test]
+fn count_produces_correct_number_of_lines() {
+    for n in ["1", "3", "5"] {
+        let (ok, stdout, stderr) = run(&["--print", "--count", n, "--separator", " "]);
+        assert!(ok, "--count {n} exited with error; stderr: {stderr}");
+        let lines: Vec<&str> = stdout.lines().collect();
+        assert_eq!(
+            lines.len(),
+            n.parse::<usize>().unwrap(),
+            "--count {n} should produce {n} lines; stdout: {stdout:?}"
+        );
+    }
+}
+
+#[test]
+fn count_each_line_is_valid_passphrase() {
+    let (ok, stdout, _) = run(&["--print", "--count", "4", "--separator", " "]);
+    assert!(ok);
+    for line in stdout.lines() {
+        assert!(!line.is_empty(), "output line should not be empty");
+        for word in line.split(' ') {
+            assert!(
+                word.chars().all(|c| c.is_ascii_alphabetic() || c == '-'),
+                "unexpected token {word:?} in line {line:?}"
+            );
+        }
+    }
+}
+
+#[test]
+fn count_zero_exits_with_error() {
+    let (ok, _, stderr) = run(&["--print", "--count", "0"]);
+    assert!(!ok, "expected non-zero exit for --count 0");
+    assert!(
+        stderr.contains("count"),
+        "error message should mention 'count', got: {stderr:?}"
+    );
+}
+
+// ── bits mode ────────────────────────────────────────────────────────────────
+
+#[test]
+fn bits_produces_enough_words_for_target_entropy() {
+    // EFF long list: 7776 words → ~12.925 bits/word
+    // 80 bits → ceil(80/12.925) = 7 words
+    let (ok, stdout, stderr) = run(&["--print", "--bits", "80", "--separator", " "]);
+    assert!(ok, "--bits 80 exited with error; stderr: {stderr}");
+    let count = stdout.trim().split(' ').count();
+    assert_eq!(count, 7, "--bits 80 should produce 7 words; stdout: {stdout:?}");
+}
+
+#[test]
+fn bits_with_count_produces_correct_grid() {
+    // --bits 80 → 7 words per line; --count 3 → 3 lines
+    let (ok, stdout, stderr) = run(&["--print", "--bits", "80", "--count", "3", "--separator", " "]);
+    assert!(ok, "--bits 80 --count 3 exited with error; stderr: {stderr}");
+    let lines: Vec<&str> = stdout.lines().collect();
+    assert_eq!(lines.len(), 3, "expected 3 lines; stdout: {stdout:?}");
+    for line in &lines {
+        assert_eq!(
+            line.split(' ').count(),
+            7,
+            "each line should have 7 words; line: {line:?}"
+        );
+    }
+}
+
+#[test]
+fn bits_zero_exits_with_error() {
+    let (ok, _, stderr) = run(&["--print", "--bits", "0"]);
+    assert!(!ok, "expected non-zero exit for --bits 0");
+    assert!(
+        stderr.contains("bits"),
+        "error message should mention 'bits', got: {stderr:?}"
+    );
+}
+
 // ── error handling ───────────────────────────────────────────────────────────
 
 #[test]
