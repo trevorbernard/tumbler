@@ -21,6 +21,16 @@ impl EntropySource {
                 format!("cannot open entropy device '{}': {}", path, e),
             )
         })?;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::FileTypeExt;
+            if !device.metadata()?.file_type().is_char_device() {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    format!("'{}' is not a character device", path),
+                ));
+            }
+        }
         Ok(Self {
             inner: Inner::Device(device),
         })
