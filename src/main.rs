@@ -106,8 +106,7 @@ fn main() -> io::Result<()> {
             println!("{}", passphrase);
         } else {
             match clipboard::copy(&passphrase) {
-                Ok(clipboard::Destination::Clipboard) => eprintln!("Copied to clipboard."),
-                Ok(clipboard::Destination::Stdout) => {}
+                Ok(()) => eprintln!("Copied to clipboard."),
                 Err(e) => {
                     eprintln!("warning: clipboard write failed ({}), printing instead", e);
                     println!("{}", passphrase);

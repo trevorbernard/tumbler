@@ -3,24 +3,11 @@ use std::fs::OpenOptions;
 use std::io::{self, Write};
 use zeroize::Zeroizing;
 
-pub enum Destination {
-    Clipboard,
-    Stdout,
-}
-
-pub fn copy(text: &str) -> io::Result<Destination> {
-    match OpenOptions::new().write(true).open("/dev/tty") {
-        Ok(mut tty) => {
-            let encoded = Zeroizing::new(STANDARD.encode(text));
-            let osc52 = Zeroizing::new(format!("\x1b]52;c;{}\x07", encoded.as_str()));
-            tty.write_all(osc52.as_bytes())?;
-            Ok(Destination::Clipboard)
-        }
-        Err(_) => {
-            println!("{}", text);
-            Ok(Destination::Stdout)
-        }
-    }
+pub fn copy(text: &str) -> io::Result<()> {
+    let mut tty = OpenOptions::new().write(true).open("/dev/tty")?;
+    let encoded = Zeroizing::new(STANDARD.encode(text));
+    let osc52 = Zeroizing::new(format!("\x1b]52;c;{}\x07", encoded.as_str()));
+    tty.write_all(osc52.as_bytes())
 }
 
 #[cfg(test)]
