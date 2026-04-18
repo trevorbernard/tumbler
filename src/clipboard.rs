@@ -1,6 +1,7 @@
 use base64::{engine::general_purpose::STANDARD, Engine};
 use std::fs::OpenOptions;
 use std::io::{self, Write};
+use zeroize::Zeroizing;
 
 pub enum Destination {
     Clipboard,
@@ -10,8 +11,8 @@ pub enum Destination {
 pub fn copy(text: &str) -> io::Result<Destination> {
     match OpenOptions::new().write(true).open("/dev/tty") {
         Ok(mut tty) => {
-            let encoded = STANDARD.encode(text);
-            let osc52 = format!("\x1b]52;c;{}\x07", encoded);
+            let encoded = Zeroizing::new(STANDARD.encode(text));
+            let osc52 = Zeroizing::new(format!("\x1b]52;c;{}\x07", encoded.as_str()));
             tty.write_all(osc52.as_bytes())?;
             Ok(Destination::Clipboard)
         }
