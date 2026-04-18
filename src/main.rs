@@ -100,7 +100,7 @@ fn main() -> io::Result<()> {
     let print = args.print || args.count > 1;
 
     for _ in 0..args.count {
-        let mut passphrase = generate_passphrase(&words, word_count, &args)?;
+        let mut passphrase = generate_passphrase(words, word_count, &args)?;
 
         if print {
             println!("{}", passphrase);
@@ -194,7 +194,7 @@ mod tests {
     fn generate_word_count() {
         let words = crate::wordlist::load();
         for n in [1, 4, 6, 8] {
-            let phrase = generate_passphrase(&words, n, &args(n, " ", false)).unwrap();
+            let phrase = generate_passphrase(words, n, &args(n, " ", false)).unwrap();
             assert_eq!(phrase.split(' ').count(), n, "expected {n} words");
         }
     }
@@ -202,7 +202,7 @@ mod tests {
     #[test]
     fn generate_capitalized_by_default() {
         let words = crate::wordlist::load();
-        let phrase = generate_passphrase(&words, 6, &args(6, " ", false)).unwrap();
+        let phrase = generate_passphrase(words, 6, &args(6, " ", false)).unwrap();
         for word in phrase.split(' ') {
             let first = word.chars().next().unwrap();
             assert!(first.is_uppercase(), "'{word}' should start with uppercase");
@@ -212,7 +212,7 @@ mod tests {
     #[test]
     fn generate_no_capitalize() {
         let words = crate::wordlist::load();
-        let phrase = generate_passphrase(&words, 6, &args(6, " ", true)).unwrap();
+        let phrase = generate_passphrase(words, 6, &args(6, " ", true)).unwrap();
         for word in phrase.split(' ') {
             assert_eq!(
                 word,
@@ -225,14 +225,14 @@ mod tests {
     #[test]
     fn generate_respects_separator() {
         let words = crate::wordlist::load();
-        let phrase = generate_passphrase(&words, 4, &args(4, "-", true)).unwrap();
+        let phrase = generate_passphrase(words, 4, &args(4, "-", true)).unwrap();
         assert_eq!(phrase.matches('-').count(), 3, "4 words need 3 hyphens");
     }
 
     #[test]
     fn generate_default_no_separator() {
         let words = crate::wordlist::load();
-        let phrase = generate_passphrase(&words, 4, &args(4, "", false)).unwrap();
+        let phrase = generate_passphrase(words, 4, &args(4, "", false)).unwrap();
         assert!(!phrase.contains(' '), "default separator should be empty");
         assert!(
             phrase.chars().all(|c| c.is_ascii_alphabetic() || c == '-'),
@@ -254,6 +254,6 @@ mod tests {
             print: false,
             entropy: false,
         };
-        assert!(generate_passphrase(&words, 1, &a).is_err());
+        assert!(generate_passphrase(words, 1, &a).is_err());
     }
 }

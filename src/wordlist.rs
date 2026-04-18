@@ -1,9 +1,15 @@
+use std::sync::OnceLock;
+
 const RAW: &str = include_str!("wordlist.txt");
 
-pub fn load() -> Vec<&'static str> {
-    RAW.lines()
-        .filter_map(|line| line.split_once('\t').map(|(_, word)| word))
-        .collect()
+static WORDS: OnceLock<Vec<&'static str>> = OnceLock::new();
+
+pub fn load() -> &'static [&'static str] {
+    WORDS.get_or_init(|| {
+        RAW.lines()
+            .filter_map(|line| line.split_once('\t').map(|(_, word)| word))
+            .collect()
+    })
 }
 
 #[cfg(test)]
@@ -36,7 +42,7 @@ mod tests {
 
     #[test]
     fn all_lowercase() {
-        for word in load() {
+        for &word in load() {
             assert_eq!(
                 word,
                 word.to_lowercase(),
@@ -47,14 +53,14 @@ mod tests {
 
     #[test]
     fn no_empty_words() {
-        for word in load() {
+        for &word in load() {
             assert!(!word.is_empty(), "wordlist contains an empty entry");
         }
     }
 
     #[test]
     fn only_lowercase_alpha_and_hyphens() {
-        for word in load() {
+        for &word in load() {
             assert!(
                 word.chars().all(|c| c.is_ascii_lowercase() || c == '-'),
                 "word '{word}' contains unexpected characters"
