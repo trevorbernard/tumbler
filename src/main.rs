@@ -128,12 +128,16 @@ fn generate_passphrase(words: &[&str], word_count: usize, args: &Args) -> io::Re
     };
     let selected: Vec<String> = (0..word_count)
         .map(|_| {
-            rng.next_index(words.len()).map(|i| {
-                if args.no_capitalize {
-                    words[i].to_string()
-                } else {
-                    capitalize(words[i])
-                }
+            rng.next_index(words.len()).and_then(|i| {
+                words
+                    .get(i)
+                    .ok_or_else(|| {
+                        io::Error::new(
+                            io::ErrorKind::InvalidData,
+                            format!("word index {i} out of range"),
+                        )
+                    })
+                    .map(|w| if args.no_capitalize { w.to_string() } else { capitalize(w) })
             })
         })
         .collect::<io::Result<_>>()?;
