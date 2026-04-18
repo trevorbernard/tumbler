@@ -1,5 +1,4 @@
 use sha2::{Digest, Sha256};
-use std::fmt::Write;
 
 // SHA-256 of the EFF large wordlist (eff_large_wordlist.txt, 7776 entries).
 // If this check fails, replace src/wordlist.txt with the file from:
@@ -11,10 +10,7 @@ fn main() {
     let bytes = std::fs::read("src/wordlist.txt").expect("src/wordlist.txt not found");
 
     let digest = Sha256::digest(&bytes);
-    let actual = digest.iter().fold(String::with_capacity(64), |mut s, b| {
-        write!(s, "{:02x}", b).unwrap();
-        s
-    });
+    let actual: String = digest.iter().map(|b| format!("{b:02x}")).collect();
 
     if actual != EXPECTED {
         panic!(
