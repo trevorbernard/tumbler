@@ -109,7 +109,10 @@ fn read_single_die(die_num: usize) -> io::Result<usize> {
 /// executes exactly once in any practical lifetime of the universe.
 pub(crate) fn sample<R: Read>(source: &mut R, list_len: usize) -> io::Result<usize> {
     if list_len == 0 {
-        return Err(io::Error::new(io::ErrorKind::InvalidInput, "list_len must be > 0"));
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "list_len must be > 0",
+        ));
     }
     let n = list_len as u64;
     // threshold == 2^64 mod n; reject values in [0, threshold) to avoid modulo bias.

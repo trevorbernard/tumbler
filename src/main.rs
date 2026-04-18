@@ -137,7 +137,13 @@ fn generate_passphrase(words: &[&str], word_count: usize, args: &Args) -> io::Re
                             format!("word index {i} out of range"),
                         )
                     })
-                    .map(|w| if args.no_capitalize { w.to_string() } else { capitalize(w) })
+                    .map(|w| {
+                        if args.no_capitalize {
+                            w.to_string()
+                        } else {
+                            capitalize(w)
+                        }
+                    })
             })
         })
         .collect::<io::Result<_>>()?;
