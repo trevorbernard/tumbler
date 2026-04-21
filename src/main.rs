@@ -54,10 +54,30 @@ struct Args {
     /// show entropy statistics
     #[argh(switch, short = 'e')]
     entropy: bool,
+
+    /// print version and exit
+    #[argh(switch, short = 'V')]
+    version: bool,
 }
+
+const VERSION: &str = {
+    const PKG: &str = env!("CARGO_PKG_VERSION");
+    const SHA: &str = env!("GIT_SHORT_SHA");
+    if SHA.is_empty() {
+        PKG
+    } else {
+        // "0.1.2-dev+abc1234"
+        concat!(env!("CARGO_PKG_VERSION"), "+", env!("GIT_SHORT_SHA"))
+    }
+};
 
 fn main() -> io::Result<()> {
     let args: Args = argh::from_env();
+
+    if args.version {
+        println!("{}", VERSION);
+        return Ok(());
+    }
 
     if args.count == 0 {
         eprintln!("error: --count must be at least 1");
@@ -173,6 +193,7 @@ mod tests {
             dice: false,
             print: false,
             entropy: false,
+            version: false,
         }
     }
 
@@ -259,6 +280,7 @@ mod tests {
             dice: false,
             print: false,
             entropy: false,
+            version: false,
         };
         assert!(generate_passphrase(words, 1, &a).is_err());
     }

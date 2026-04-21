@@ -274,6 +274,51 @@ fn bits_zero_exits_with_error() {
     );
 }
 
+// ── version flag ─────────────────────────────────────────────────────────────
+
+#[test]
+fn version_flag_prints_version() {
+    let (ok, stdout, _) = run(&["--version"]);
+    assert!(ok);
+    let version = stdout.trim();
+    assert!(
+        version.starts_with(env!("CARGO_PKG_VERSION")),
+        "version output should start with package version; got: {version:?}"
+    );
+}
+
+#[test]
+fn version_short_flag_matches_long() {
+    let (_, long, _) = run(&["--version"]);
+    let (_, short, _) = run(&["-V"]);
+    assert_eq!(long.trim(), short.trim(), "-V and --version should produce identical output");
+}
+
+#[test]
+fn version_dev_includes_git_sha() {
+    let pkg_version = env!("CARGO_PKG_VERSION");
+    if !pkg_version.contains("-dev") {
+        return;
+    }
+    let (ok, stdout, _) = run(&["--version"]);
+    assert!(ok);
+    let version = stdout.trim();
+    // dev builds: "0.1.2-dev+<sha>" where sha is 7 hex chars
+    let sha_part = version.strip_prefix(pkg_version).and_then(|s| s.strip_prefix('+'));
+    assert!(
+        sha_part.is_some_and(|s| !s.is_empty() && s.chars().all(|c| c.is_ascii_hexdigit())),
+        "dev version should end with +<hex-sha>; got: {version:?}"
+    );
+}
+
+#[test]
+fn version_exits_without_generating_passphrase() {
+    let (ok, stdout, _) = run(&["--version"]);
+    assert!(ok);
+    // Output is just the version line, no passphrase words
+    assert_eq!(stdout.lines().count(), 1, "expected exactly one output line; got: {stdout:?}");
+}
+
 // ── error handling ───────────────────────────────────────────────────────────
 
 #[test]
