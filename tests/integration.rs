@@ -291,7 +291,11 @@ fn version_flag_prints_version() {
 fn version_short_flag_matches_long() {
     let (_, long, _) = run(&["--version"]);
     let (_, short, _) = run(&["-V"]);
-    assert_eq!(long.trim(), short.trim(), "-V and --version should produce identical output");
+    assert_eq!(
+        long.trim(),
+        short.trim(),
+        "-V and --version should produce identical output"
+    );
 }
 
 #[test]
@@ -304,7 +308,9 @@ fn version_dev_includes_git_sha() {
     assert!(ok);
     let version = stdout.trim();
     // dev builds: "0.1.2-dev+<sha>" where sha is 7 hex chars
-    let sha_part = version.strip_prefix(pkg_version).and_then(|s| s.strip_prefix('+'));
+    let sha_part = version
+        .strip_prefix(pkg_version)
+        .and_then(|s| s.strip_prefix('+'));
     assert!(
         sha_part.is_some_and(|s| !s.is_empty() && s.chars().all(|c| c.is_ascii_hexdigit())),
         "dev version should end with +<hex-sha>; got: {version:?}"
@@ -316,7 +322,11 @@ fn version_exits_without_generating_passphrase() {
     let (ok, stdout, _) = run(&["--version"]);
     assert!(ok);
     // Output is just the version line, no passphrase words
-    assert_eq!(stdout.lines().count(), 1, "expected exactly one output line; got: {stdout:?}");
+    assert_eq!(
+        stdout.lines().count(),
+        1,
+        "expected exactly one output line; got: {stdout:?}"
+    );
 }
 
 // ── error handling ───────────────────────────────────────────────────────────
