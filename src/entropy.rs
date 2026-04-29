@@ -60,9 +60,7 @@ impl EntropySource {
                     ));
                 }
                 *next_word += 1;
-                let word_num = *next_word;
-                let total = *total_words;
-                read_dice_roll(word_num, total)
+                read_dice_roll(*next_word, *total_words)
             }
         }
     }
@@ -90,13 +88,8 @@ fn read_single_die(die_num: usize) -> io::Result<usize> {
         if n == 0 {
             return Err(io::Error::new(io::ErrorKind::UnexpectedEof, "stdin closed"));
         }
-        match line.trim() {
-            "1" => return Ok(0),
-            "2" => return Ok(1),
-            "3" => return Ok(2),
-            "4" => return Ok(3),
-            "5" => return Ok(4),
-            "6" => return Ok(5),
+        match line.trim().parse::<usize>() {
+            Ok(n @ 1..=6) => return Ok(n - 1),
             _ => eprintln!("  enter a single digit from 1 to 6"),
         }
     }

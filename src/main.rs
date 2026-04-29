@@ -92,17 +92,19 @@ fn main() -> io::Result<()> {
     let words = wordlist::load();
     let bits_per_word = (words.len() as f64).log2();
 
-    let word_count = if let Some(b) = args.bits {
+    if let Some(b) = args.bits {
         if b <= 0.0 {
             eprintln!("error: --bits must be > 0");
             std::process::exit(1);
         }
+    } else if args.words == 0 {
+        eprintln!("error: --words must be at least 1");
+        std::process::exit(1);
+    }
+
+    let word_count = if let Some(b) = args.bits {
         ((b / bits_per_word).ceil() as usize).max(1)
     } else {
-        if args.words == 0 {
-            eprintln!("error: --words must be at least 1");
-            std::process::exit(1);
-        }
         args.words
     };
 
@@ -148,22 +150,9 @@ fn generate_passphrase(words: &[&str], word_count: usize, args: &Args) -> io::Re
     };
     let selected: Vec<String> = (0..word_count)
         .map(|_| {
-            rng.next_index(words.len()).and_then(|i| {
-                words
-                    .get(i)
-                    .ok_or_else(|| {
-                        io::Error::new(
-                            io::ErrorKind::InvalidData,
-                            format!("word index {i} out of range"),
-                        )
-                    })
-                    .map(|w| {
-                        if args.no_capitalize {
-                            w.to_string()
-                        } else {
-                            capitalize(w)
-                        }
-                    })
+            rng.next_index(words.len()).map(|i| {
+                let w = words[i];
+                if args.no_capitalize { w.to_string() } else { capitalize(w) }
             })
         })
         .collect::<io::Result<_>>()?;
