@@ -62,6 +62,7 @@
             pkgs.cargo-audit
             pkgs.cargo-nextest
             pkgs.coreutils # for sha256sum
+            pkgs.git
             pkgs.pkg-config
           ];
           shellHook = ''
