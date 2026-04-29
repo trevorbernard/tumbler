@@ -1,6 +1,7 @@
 {
   pkgs,
   rustPlatform ? pkgs.rustPlatform,
+  gitShortSha ? "",
 }:
 let
   cargoToml = builtins.fromTOML (builtins.readFile ./Cargo.toml);
@@ -12,6 +13,7 @@ rustPlatform.buildRustPackage {
   cargoLock = {
     lockFile = ./Cargo.lock;
   };
+  GIT_SHORT_SHA = gitShortSha;
   nativeBuildInputs = [
     pkgs.pkg-config
   ];

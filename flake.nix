@@ -6,6 +6,7 @@
   };
 
   outputs = {
+    self,
     nixpkgs,
     rust-overlay,
     ...
@@ -34,7 +35,9 @@
           cargo = rust;
           rustc = rust;
         };
-        default = pkgs.callPackage ./default.nix {inherit rustPlatform;};
+        # shortRev is absent on dirty trees; dirtyShortRev carries a "-dirty" suffix
+        gitShortSha = nixpkgs.lib.removeSuffix "-dirty" (self.shortRev or (self.dirtyShortRev or ""));
+        default = pkgs.callPackage ./default.nix {inherit rustPlatform gitShortSha;};
       in
         {inherit default;}
         // pkgs.lib.optionalAttrs pkgs.stdenv.isLinux {

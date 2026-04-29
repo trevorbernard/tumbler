@@ -24,13 +24,19 @@ fn main() {
     let version = env!("CARGO_PKG_VERSION");
     let sha = if version.contains("-dev") {
         println!("cargo:rerun-if-changed=.git/HEAD");
-        std::process::Command::new("git")
-            .args(["rev-parse", "--short", "HEAD"])
-            .output()
+        // Prefer an injected value (e.g. from nix, where .git is absent)
+        std::env::var("GIT_SHORT_SHA")
             .ok()
-            .filter(|o| o.status.success())
-            .and_then(|o| String::from_utf8(o.stdout).ok())
-            .map(|s| s.trim().to_owned())
+            .filter(|s| !s.is_empty())
+            .or_else(|| {
+                std::process::Command::new("git")
+                    .args(["rev-parse", "--short", "HEAD"])
+                    .output()
+                    .ok()
+                    .filter(|o| o.status.success())
+                    .and_then(|o| String::from_utf8(o.stdout).ok())
+                    .map(|s| s.trim().to_owned())
+            })
             .unwrap_or_default()
     } else {
         String::new()
