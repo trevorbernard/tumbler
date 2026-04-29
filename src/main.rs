@@ -152,7 +152,11 @@ fn generate_passphrase(words: &[&str], word_count: usize, args: &Args) -> io::Re
         .map(|_| {
             rng.next_index(words.len()).map(|i| {
                 let w = words[i];
-                if args.no_capitalize { w.to_string() } else { capitalize(w) }
+                if args.no_capitalize {
+                    w.to_string()
+                } else {
+                    capitalize(w)
+                }
             })
         })
         .collect::<io::Result<_>>()?;
