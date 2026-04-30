@@ -38,13 +38,30 @@
         # shortRev is absent on dirty trees; dirtyShortRev carries a "-dirty" suffix
         gitShortSha = nixpkgs.lib.removeSuffix "-dirty" (self.shortRev or (self.dirtyShortRev or ""));
         default = pkgs.callPackage ./default.nix {inherit rustPlatform gitShortSha;};
+
+        muslPkgs = pkgs.pkgsCross.musl64;
+        rustWithMusl = rust.override {
+          extensions = [];
+          targets = ["x86_64-unknown-linux-musl"];
+        };
+        muslRustPlatform = muslPkgs.makeRustPlatform {
+          cargo = rustWithMusl;
+          rustc = rustWithMusl;
+        };
+        static = (muslPkgs.callPackage ./default.nix {
+          rustPlatform = muslRustPlatform;
+          inherit gitShortSha;
+        }).overrideAttrs (_: {
+          RUSTFLAGS = "-C target-feature=+crt-static --remap-path-prefix=/nix/store=/build";
+          stripAllList = ["bin"];
+        });
       in
-        {inherit default;}
+        {inherit default static;}
         // pkgs.lib.optionalAttrs pkgs.stdenv.isLinux {
           dockerImage = pkgs.dockerTools.buildLayeredImage {
             name = "tumbler";
             tag = "latest";
-            contents = [default];
+            contents = [static];
             config = {
               Entrypoint = ["/bin/tumbler"];
             };
