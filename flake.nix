@@ -37,6 +37,7 @@
         };
         # shortRev is absent on dirty trees; dirtyShortRev carries a "-dirty" suffix
         gitShortSha = nixpkgs.lib.removeSuffix "-dirty" (self.shortRev or (self.dirtyShortRev or ""));
+        cargoToml = builtins.fromTOML (builtins.readFile ./Cargo.toml);
         default = pkgs.callPackage ./default.nix {inherit rustPlatform gitShortSha;};
 
         muslPkgs = pkgs.pkgsCross.musl64;
@@ -48,22 +49,27 @@
           cargo = rustWithMusl;
           rustc = rustWithMusl;
         };
-        static = (muslPkgs.callPackage ./default.nix {
-          rustPlatform = muslRustPlatform;
-          inherit gitShortSha;
-        }).overrideAttrs (_: {
-          RUSTFLAGS = "-C target-feature=+crt-static --remap-path-prefix=/nix/store=/build";
-          stripAllList = ["bin"];
-        });
+        static =
+          (muslPkgs.callPackage ./default.nix {
+            rustPlatform = muslRustPlatform;
+            inherit gitShortSha;
+          }).overrideAttrs (_: {
+            CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_RUSTFLAGS = "-C target-feature=+crt-static -C force-frame-pointers=yes --remap-path-prefix=/nix/store=/build";
+            stripAllList = ["bin"];
+            allowedReferences = [];
+          });
       in
-        {inherit default static;}
+        {inherit default;}
         // pkgs.lib.optionalAttrs pkgs.stdenv.isLinux {
+          inherit static;
           dockerImage = pkgs.dockerTools.buildLayeredImage {
             name = "tumbler";
-            tag = "latest";
+            tag = "${cargoToml.package.version}${nixpkgs.lib.optionalString (gitShortSha != "") "-${gitShortSha}"}";
             contents = [static];
             config = {
               Entrypoint = ["/bin/tumbler"];
+              Cmd = ["--print"];
+              User = "65534:65534";
             };
           };
         }
