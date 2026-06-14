@@ -22,5 +22,4 @@ mod tests {
         assert!(seq.starts_with("\x1b]52;c;"));
         assert!(seq.ends_with('\x07'));
     }
-
 }
